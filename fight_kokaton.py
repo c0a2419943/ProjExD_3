@@ -2,12 +2,13 @@ import os
 import random
 import sys
 import time
+import math  
 import pygame as pg
 
 
 WIDTH = 1100  # ゲームウィンドウの幅
 HEIGHT = 650  # ゲームウィンドウの高さ
-NUM_OF_BOMBS = 5  # 爆弾の個数
+NUM_OF_BOMBS = 5  
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -56,6 +57,7 @@ class Bird:
         self.img = __class__.imgs[(+5, 0)]
         self.rct: pg.Rect = self.img.get_rect()
         self.rct.center = xy
+        self.dire = (+5, 0) 
 
     def change_img(self, num: int, screen: pg.Surface):
         """
@@ -82,53 +84,35 @@ class Bird:
             self.rct.move_ip(-sum_mv[0], -sum_mv[1])
         if not (sum_mv[0] == 0 and sum_mv[1] == 0):
             self.img = __class__.imgs[tuple(sum_mv)]
+            self.dire = tuple(sum_mv)  
         screen.blit(self.img, self.rct)
 
 
 class Beam:
-    """
-    こうかとんが放つビームに関するクラス
-    """
     def __init__(self, bird: "Bird"):
-        """
-        ビーム画像Surfaceを生成する
-        引数 bird：ビームを放つこうかとん（Birdインスタンス）
-        """
-        self.img = pg.image.load(f"fig/beam.png")  # ビームSurface
-        self.rct = self.img.get_rect()  # ビームRect
-        self.rct.centery = bird.rct.centery  # こうかとんの中心縦座標
-        self.rct.left = bird.rct.right  # こうかとんの右座標
-        self.vx, self.vy = +5, 0
+        self.vx, self.vy = bird.dire
+        angle = math.degrees(math.atan2(-self.vy, self.vx))
+        self.img0 = pg.image.load("fig/beam.png")
+        self.img = pg.transform.rotozoom(self.img0, angle, 0.9)
+        self.rct = self.img.get_rect()
+        self.rct.centerx = bird.rct.centerx + bird.rct.width * self.vx / 5
+        self.rct.centery = bird.rct.centery + bird.rct.height * self.vy / 5
 
     def update(self, screen: pg.Surface):
-        """
-        ビームを速度ベクトルself.vx, self.vyに基づき移動させる
-        引数 screen：画面Surface
-        """
+        self.rct.move_ip(self.vx, self.vy)
         if check_bound(self.rct) == (True, True):
-            self.rct.move_ip(self.vx, self.vy)
             screen.blit(self.img, self.rct)
 
 
 class Bomb:
     def __init__(self, color: tuple[int, int, int], rad: int):
-        """
-        引数に基づき爆弾円Surfaceを生成する
-        引数1 color：爆弾円の色タプル
-        引数2 rad：爆弾円の半径
-        """
         self.img = pg.Surface((2*rad, 2*rad))
         pg.draw.circle(self.img, color, (rad, rad), rad)
         self.img.set_colorkey((0, 0, 0))
         self.rct = self.img.get_rect()
         self.rct.center = random.randint(0, WIDTH), random.randint(0, HEIGHT)
         self.vx, self.vy = +5, +5
-
     def update(self, screen: pg.Surface):
-        """
-        爆弾を速度ベクトルself.vx, self.vyに基づき移動させる
-        引数 screen：画面Surface
-        """
         yoko, tate = check_bound(self.rct)
         if not yoko:
             self.vx *= -1
@@ -137,15 +121,14 @@ class Bomb:
         self.rct.move_ip(self.vx, self.vy)
         screen.blit(self.img, self.rct)
 
-
 class Score:
     def __init__(self):
-        self.fonto = pg.font.SysFont("hgp創英角ﾎﾟｯﾌﾟ体", 30)
-        self.color = (0, 0, 255)
-        self.value = 0
+        self.fonto = pg.font.SysFont("hgp創英角ﾎﾟｯﾌﾟ体", 30)  
+        self.color = (0, 0, 255)                              
+        self.value = 0                                        
         self.img = self.fonto.render(f"Score:{self.value}", 0, self.color)
         self.rct = self.img.get_rect()
-        self.rct.center = (100, HEIGHT - 50)
+        self.rct.center = (100, HEIGHT - 50)                  
 
     def add(self, n=1):
         self.value += n
@@ -153,7 +136,6 @@ class Score:
     def update(self, screen: pg.Surface):
         self.img = self.fonto.render(f"Score:{self.value}", 0, self.color)
         screen.blit(self.img, self.rct)
-
 
 
 class Explosion:
@@ -167,9 +149,6 @@ class Explosion:
         self.life = 20  
 
     def update(self, screen: pg.Surface):
-        """
-        爆発経過時間lifeを1減算し，正ならSurfaceリストを交互に切り替えて描画
-        """
         self.life -= 1
         if self.life > 0:
             img = self.images[self.life % 2]
@@ -183,12 +162,11 @@ def main():
     bird = Bird((300, 200))
     bombs = [Bomb((255, 0, 0), 10) for _ in range(NUM_OF_BOMBS)]
     score = Score()
-    beams = []
-    explosions = [] 
+    beams = []          
+    explosions = []     
 
     clock = pg.time.Clock()
     tmr = 0
-
     while True:
         for event in pg.event.get():
             if event.type == pg.QUIT:
@@ -222,20 +200,18 @@ def main():
                     explosions.append(Explosion(bb))  
                     break
 
-        
         explosions = [ex for ex in explosions if ex.life > 0]
         bombs = [bb for bb in bombs if bb is not None]
         beams = [bm for bm in beams if bm is not None and check_bound(bm.rct) == (True, True)]
 
         key_lst = pg.key.get_pressed()
         bird.update(key_lst, screen)
-
         for bm in beams:
             bm.update(screen)
         for bomb in bombs:
             bomb.update(screen)
         for ex in explosions:
-            ex.update(screen)  
+            ex.update(screen)
         score.update(screen)
         pg.display.update()
         tmr += 1
@@ -247,5 +223,3 @@ if __name__ == "__main__":
     main()
     pg.quit()
     sys.exit()
-
-
