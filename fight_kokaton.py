@@ -1,8 +1,8 @@
+import math
 import os
 import random
 import sys
 import time
-import math  
 import pygame as pg
 
 
@@ -216,7 +216,6 @@ def main():
         pg.display.update()
         tmr += 1
         clock.tick(50)
-
 
 if __name__ == "__main__":
     pg.init()
